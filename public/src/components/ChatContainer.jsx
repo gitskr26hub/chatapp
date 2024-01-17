@@ -1,3 +1,4 @@
+
 import  { useState, useEffect, useRef } from "react";
 import styled from "styled-components";
 import ChatInput from "./ChatInput";
@@ -7,7 +8,11 @@ import axios from "axios";
 import { api } from "./api";
 import { IoMdVideocam } from "react-icons/io";
 
+import Peer from 'simple-peer';
+
 import { ToastContainer } from "react-toastify";
+
+
 
 export default function ChatContainer({ currentChat, socket }) {
   const [messages, setMessages] = useState([]);
@@ -16,7 +21,7 @@ export default function ChatContainer({ currentChat, socket }) {
   const [isOnline, setIsOnline] = useState(false);
   const [opacity, setOpacity] = useState("none");
 
-  //  console.log("currentChat", currentChat);
+ 
 
   useEffect(() => {
     const { id, token } = JSON.parse(sessionStorage.getItem("chat-app-user"));
@@ -126,61 +131,82 @@ export default function ChatContainer({ currentChat, socket }) {
 
   const { id } = JSON.parse(sessionStorage.getItem("chat-app-user"));
 
-  //video call ---------------------
+  //video call -------------------------------------------------
+
+
+  const [ me, setMe ] = useState("")
+	const [ stream, setStream ] = useState()
+	const [ receivingCall, setReceivingCall ] = useState(false)
+	const [ caller, setCaller ] = useState("")
+	const [ callerSignal, setCallerSignal ] = useState()
+	const [ callAccepted, setCallAccepted ] = useState(false)
+	const [ idToCall, setIdToCall ] = useState("")
+	const [ callEnded, setCallEnded] = useState(false)
+	const [ name, setName ] = useState("")
+
+
+//------------------------------------------------------------------
+
+
   const localVideoRef = useRef(null);
   const remoteVideoRef = useRef(null);
-  const peerConnection = useRef(null);
+  const connectionRef = useRef(null);
 
 
-  const startVideoCall = async () => {
+  const startVideoCall = async (anotherUserID) => {
     try {
-      await navigator?.mediaDevices?.getUserMedia({
+    let stream= await navigator?.mediaDevices?.getUserMedia({
         video: true,
         audio: true,
-      }).then((stream)=>{
+        })
+    setStream(stream)
+    localVideoRef.current.srcObject = stream;
 
-        localVideoRef.current.srcObject = stream;
-
-        const configuration = {
-          iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
-        };
-        peerConnection.current = new RTCPeerConnection(configuration);
-  
-        stream.getTracks().forEach((track) => {
-          peerConnection.current.addTrack(track, stream);
-        });
-  
-        peerConnection.current.onicecandidate = (event) => {
-          if (event.candidate) {
-            // Send the candidate to the other user
-            console.log("Send ICE candidate:", event.candidate);
-          }
-        };
-  
-        peerConnection.current.ontrack = (event) => {
-          // Add the remote stream to the remote video element
-          remoteVideoRef.current.srcObject = event.streams[0];
-        };
-  
-     //   Create an offer and set it as the local description
-        const offer =  peerConnection.current.createOffer();
-         peerConnection.current.setLocalDescription(offer);
-  
-        // Send the offer to the other user
-        console.log("Send offer:", localVideoRef.current.srcObject);
-      });
-
-    } catch (error) {
-      console.log("Error accessing user media:", error);
-    }
-  };
-  const cutVideoCall = () => {
    
 
+
+  
+    const peer = new Peer({
+			initiator: true,
+			trickle: false,
+			stream: stream
+		})
+
+		peer.on("signal", (data) => {
+			socket.emit("callUser", {
+				userToCall: anotherUserID,
+				signalData: data,
+				from: me,
+				name: name
+			})
+		})
+		peer.on("stream", (stream) => {
+			
+				localVideoRef.current.srcObject = stream
+			
+		})
+		socket.on("callAccepted", (signal) => {
+			setCallAccepted(true)
+			peer.signal(signal)
+		})
+
+		connectionRef.current = peer
+
+      // console.log("Send offer:", localVideoRef.current.srcObject);
+    } catch (error) {
+      console.log("Error accessing user media:==>", error);
+    }
+  };
+
+
+  const cutVideoCall =async () => {
     // Close the peer connection and stop video streams
+  
     if (peerConnection.current) {
       peerConnection.current.close();
     }
+
+    setStream(false)
 
     if (localVideoRef.current) {
       const stream = localVideoRef.current.srcObject;
@@ -220,7 +246,7 @@ export default function ChatContainer({ currentChat, socket }) {
 
           <div style={{ display: "flex", gap: "1%" }}>
             <button
-              onClick={() => {setOpacity("visible");startVideoCall();}}
+              onClick={() => {setOpacity("visible");startVideoCall(currentChat.id);}}
               style={{
                 backgroundColor: "yellow",
                 border: "none",
@@ -290,15 +316,17 @@ export default function ChatContainer({ currentChat, socket }) {
             position: "right",
           }}
         >
-          Close
+          Close X
         </button>
         <div>
           <h2>Your Video</h2>
-          <video ref={localVideoRef} autoPlay playsInline muted />
+         {<video ref={localVideoRef} autoPlay playsInline muted />}
         </div>
         <div>
           <h2>Remote Video</h2>
-          <video ref={remoteVideoRef} autoPlay playsInline />
+          {
+					<video playsInline ref={remoteVideoRef} autoPlay />
+					}
         </div>
       </VideoCallModal>
     </>
@@ -393,4 +421,7 @@ const VideoCallModal = styled.div`
   transition: all 0.3s ease-in-out;
   z-index: 1000;
   padding: 2%;
+  @media screen and (min-width: 320px) and (max-width: 640px) {
+    display:block;
+  }
 `;
