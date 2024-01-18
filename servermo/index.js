@@ -3,7 +3,7 @@ const cors = require("cors");
 require("dotenv").config();
 const connectionToDB = require("./utils/database");
 const socket = require("socket.io");
-const {createServer}=require("http")
+// const {createServer}=require("http")
 
 //---------IMPORT ROUTES START------------;
 const userRouter = require("./routes/userRoute");
@@ -113,25 +113,27 @@ try{
       console.log("onlineUsers===>", onlineUsers);
     });
   
+  //------------------video call---------
+  socket.on("user:call", ({ to, offer,name }) => {
+    const anotherUserID=onlineUsers.get(to)
+    console.log(to,offer,name)
+    io.to(to).emit("incomming:call", 
+    { from: socket.id, offer,name });
+  });
   
-  
-  
-    // socket.on("request-video-call", (data) => {
-    //   const receiveUserSocket = onlineUsers.get(data.to);
-    //   if (receiveUserSocket) {
-    //     socket.to(receiveUserSocket).emit("incoming-video-call", {
-    //       from: data.from,
-    //     });
-    //     videoCallSockets.set(data.from, socket.id);
-    //   }
-    // });
-  
-    // socket.on("accept-video-call", (data) => {
-    //   const sendUserSocket = videoCallSockets.get(data.from);
-    //   if (sendUserSocket) {
-    //     socket.to(sendUserSocket).emit("video-call-accepted", {});
-    //   }
-    // });
+  socket.on("call:accepted", ({ to, ans }) => {
+    io.to(to).emit("call:accepted", { from: socket.id, ans });
+  });
+
+  socket.on("peer:nego:needed", ({ to, offer }) => {
+    console.log("peer:nego:needed", offer);
+    io.to(to).emit("peer:nego:needed", { from: socket.id, offer });
+  });
+
+  socket.on("peer:nego:done", ({ to, ans }) => {
+    console.log("peer:nego:done", ans);
+    io.to(to).emit("peer:nego:final", { from: socket.id, ans });
+  });
   
     socket.on("disconnect", () => {
       // console.log('User disconnected:=====>>', socket.id,);

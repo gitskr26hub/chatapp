@@ -31,7 +31,7 @@ const getMessages = async (req, res) => {
   try {
     await connectToDB();
     const { from, to } = req.body;
-    console.log(from, to);
+    // console.log(from, to);
     if (!from || !to) throw "Error !! Please send full details...!!";
 
     const messages = await MessagesModel.find({
@@ -43,7 +43,7 @@ const getMessages = async (req, res) => {
       .sort({ createdAt: "asc" })
       .exec();
 
-    console.log("messages====>", messages);
+    // console.log("messages====>", messages);
 
     return res.status(201).json({ data: messages, messages: true });
   } catch (err) {
