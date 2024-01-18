@@ -150,7 +150,7 @@ export default function ChatContainer({ currentChat, socket }) {
 
   const localVideoRef = useRef(null);
   const remoteVideoRef = useRef(null);
-  const connectionRef = useRef(null);
+  const peerConnection = useRef(null);
 
 
   const startVideoCall = async (anotherUserID) => {
@@ -158,14 +158,11 @@ export default function ChatContainer({ currentChat, socket }) {
     let stream= await navigator?.mediaDevices?.getUserMedia({
         video: true,
         audio: true,
-        })
+        });
     setStream(stream)
     localVideoRef.current.srcObject = stream;
 
    
-
-
-  
     const peer = new Peer({
 			initiator: true,
 			trickle: false,
@@ -200,24 +197,34 @@ export default function ChatContainer({ currentChat, socket }) {
 
 
   const cutVideoCall =async () => {
-    // Close the peer connection and stop video streams
-  
-    if (peerConnection.current) {
-      peerConnection.current.close();
-    }
+    
+    // Close the peer connection and detach tracks
+  if (peerConnection.current) {
+    const tracks = peerConnection.current.getSenders();
 
-    setStream(false)
+    tracks.forEach((sender) => {
+      const track = sender.track;
+      if (track) {
+        track.stop();
+      }
+    });
 
-    if (localVideoRef.current) {
+    peerConnection.current.close();
+  }
+      setStream(false)
+
       const stream = localVideoRef.current.srcObject;
       const tracks = stream.getTracks();
 
-      tracks.forEach((track) => {
-        track.stop();
+      tracks.forEach(async(track) => {
+       
+       await track.stop();
       });
+      console.log(tracks)
+
 
       localVideoRef.current.srcObject = null;
-    }
+    
 
     // Reset the remote video
     if (remoteVideoRef.current) {
@@ -278,15 +285,6 @@ export default function ChatContainer({ currentChat, socket }) {
 	}
 
 	
-
-
-
-
-
-
-
-
-
 
 
 
