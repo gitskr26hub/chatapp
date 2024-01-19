@@ -3,6 +3,7 @@ const cors = require("cors");
 require("dotenv").config();
 const connectionToDB = require("./utils/database");
 const socket = require("socket.io");
+
 // const {createServer}=require("http")
 
 //---------IMPORT ROUTES START------------;
@@ -12,7 +13,7 @@ const messageRoutes = require("./routes/messageRoute");
 
 const app = express();
 
-app.use(cors({origin:"*"}));
+app.use(cors({origin:"http://localhost:5173"}));
 
 app.get("/", (req, res) => {
   res.send(`Server running on PORT ${process.env.PORT}`);
@@ -117,13 +118,21 @@ try{
   socket.on("user:call", ({ to, offer,name }) => {
     const anotherUserID=onlineUsers.get(to)
     console.log(to,offer,name)
-    io.to(to).emit("incomming:call", 
+    io.to(anotherUserID).emit("incomming:call", 
     { from: socket.id, offer,name });
   });
   
   socket.on("call:accepted", ({ to, ans }) => {
-    io.to(to).emit("call:accepted", { from: socket.id, ans });
+     io.to(to).emit("call:accepted", { from: socket.id, ans });
   });
+
+
+  socket.on("call:rejected", ({ to, msg,name }) => {
+    const anotherUserID=onlineUsers.get(to)
+    console.log(to, msg,name)
+     io.to(anotherUserID).emit("call:rejected", {  msg,name });
+  });
+
 
   socket.on("peer:nego:needed", ({ to, offer }) => {
     console.log("peer:nego:needed", offer);
