@@ -1,5 +1,4 @@
-
-import  { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import styled from "styled-components";
 import ChatInput from "./ChatInput";
 import Logout from "./Logout";
@@ -7,23 +6,17 @@ import { v4 as uuidv4 } from "uuid";
 import axios from "axios";
 import { api } from "./api";
 import { IoMdVideocam } from "react-icons/io";
+import Swal from "sweetalert2";
+import peer from "./service/peer";
 
-import peer from './service/peer';
-
-import { ToastContainer } from "react-toastify";
-
-
+import { ToastContainer, toast } from "react-toastify";
 
 export default function ChatContainer({ currentChat, socket }) {
-
-
   const [messages, setMessages] = useState([]);
   const scrollRef = useRef();
   const [arrivalMessage, setArrivalMessage] = useState(null);
   const [isOnline, setIsOnline] = useState(false);
   const [opacity, setOpacity] = useState("none");
-
- 
 
   useEffect(() => {
     const { id, token } = JSON.parse(sessionStorage.getItem("chat-app-user"));
@@ -35,7 +28,11 @@ export default function ChatContainer({ currentChat, socket }) {
 
     if (socket.current) {
       socket?.current?.on("getUserOnline", (msg) => {
-        setIsOnline(msg?.user);
+        if (msg?.user == true) {
+          setIsOnline((prev) => true);
+        } else {
+          setIsOnline((prev) => false);
+        }
         // console.log("msg getUserOnline", msg);
       });
     } else {
@@ -53,8 +50,11 @@ export default function ChatContainer({ currentChat, socket }) {
 
     if (socket.current) {
       socket?.current?.on("getUserOnline", (msg) => {
-        setIsOnline(msg?.user);
-        // console.log("msg getUserOnline", msg);
+        if (msg?.user == true) {
+          setIsOnline((prev) => true);
+        } else {
+          setIsOnline((prev) => false);
+        }
       });
     }
   }, [20000]);
@@ -92,7 +92,12 @@ export default function ChatContainer({ currentChat, socket }) {
   const handleSendMsg = async (message) => {
     const { id, token } = JSON.parse(sessionStorage.getItem("chat-app-user"));
 
-    socket.current.emit("send-msg", { from: id, to: currentChat.id, message,createdAt:new Date() });
+    socket.current.emit("send-msg", {
+      from: id,
+      to: currentChat.id,
+      message,
+      createdAt: new Date(),
+    });
 
     await axios.post(
       api + `/api/messages/addmsg`,
@@ -117,8 +122,8 @@ export default function ChatContainer({ currentChat, socket }) {
 
   useEffect(() => {
     if (socket?.current) {
-      socket?.current?.on("msg-recieve", ({message,createdAt}) => {
-        setArrivalMessage({ message: message ,createdAt});
+      socket?.current?.on("msg-recieve", ({ message, createdAt }) => {
+        setArrivalMessage({ message: message, createdAt });
       });
     }
   }, []);
@@ -131,123 +136,85 @@ export default function ChatContainer({ currentChat, socket }) {
     scrollRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  const { id ,username} = JSON.parse(sessionStorage.getItem("chat-app-user"));
+  const { id, username } = JSON.parse(sessionStorage.getItem("chat-app-user"));
 
   //video call -------------------------------------------------
 
+  const [remoteSocketId, setRemoteSocketId] = useState(null);
+  const [myStream, setMyStream] = useState();
+  const [remoteStream, setRemoteStream] = useState();
 
-  const [ me, setMe ] = useState("")
-	const [ stream, setStream ] = useState()
-	const [ receivingCall, setReceivingCall ] = useState(false)
-	const [ caller, setCaller ] = useState("")
-	const [ callerSignal, setCallerSignal ] = useState()
-	const [ callAccepted, setCallAccepted ] = useState(false)
-	const [ idToCall, setIdToCall ] = useState("")
-	const [ callEnded, setCallEnded] = useState(false)
-	const [ name, setName ] = useState("")
-
-
-//------------------------------------------------------------------
-
+  //------------------------------------------------------------------
 
   const localVideoRef = useRef(null);
   const remoteVideoRef = useRef(null);
   const peerConnection = useRef(null);
 
+  const handleCallUser = useCallback(
+    async (remoteSocketId) => {
+      console.log(isOnline, remoteSocketId);
+      if (isOnline) {
+        setOpacity("visible");
 
-  // const startVideoCall = useCallback( async (anotherUserID) => {
-  //   try {
-  //   let stream= await navigator?.mediaDevices?.getUserMedia({
-  //       video: true,
-  //       audio: true,
-  //       });
-   
-  //   localVideoRef.current.srcObject = stream;
+        const stream = await navigator.mediaDevices.getUserMedia({
+          audio: true,
+          video: true,
+        });
+        setMyStream(stream);
+        localVideoRef.current.srcObject = stream;
 
-   
-  //   const offer = await peer.getOffer();
-
-  //   socket.current.emit("user:call", 
-  //   { to: anotherUserID, offer,name:username });
-  //   setStream(stream)
-  
-
-  //     // console.log("Send offer:", localVideoRef.current.srcObject);
-  //   } catch (error) {
-  //     console.log("Error accessing user media:==>", error);
-  //   }
-  // },[socket.current])
-
-
-  // const cutVideoCall =async () => {
-    
-  //   // Close the peer connection and detach tracks
-  // if (peerConnection.current) {
-  //   const tracks = peerConnection.current.getSenders();
-
-  //   tracks.forEach((sender) => {
-  //     const track = sender.track;
-  //     if (track) {
-  //       track.stop();
-  //     }
-  //   });
-
-  //   peerConnection.current.close();
-  // }
-  //     setStream(false)
-
-  //     const stream = localVideoRef.current.srcObject;
-  //     const tracks = stream.getTracks();
-
-  //     tracks.forEach(async(track) => {
-       
-  //      await track.stop();
-  //     });
-  //     console.log(tracks)
-
-
-  //     localVideoRef.current.srcObject = null;
-    
-
-  //   // Reset the remote video
-  //   if (remoteVideoRef.current) {
-  //     remoteVideoRef.current.srcObject = null;
-  //   }
-
-  //   setCallEnded(true)
-	// 	connectionRef.current.destroy()
-
-
-  // };
-
-
-  const handleCallUser = useCallback(async (remoteSocketId) => {
-    const stream = await navigator.mediaDevices.getUserMedia({
-      audio: true,
-      video: true,
-    });
-    localVideoRef.current.srcObject = stream;
-
-    const offer = await peer.getOffer();
-    socket.current.emit("user:call",
-     { to: remoteSocketId, offer,name:username });
-   setStream(stream)
-  }, [socket.current]);
-
+        const offer = await peer.getOffer();
+        socket.current.emit("user:call", {
+          to: remoteSocketId,
+          offer,
+          name: username,
+        });
+      } else {
+        toast.error("Unable to call !! User is not online !!", {
+          position: "top-center",
+          autoClose: 3000,
+          hideProgressBar: false,
+          closeOnClick: true,
+          draggable: true,
+          theme: "colored",
+        });
+      }
+    },
+    [socket.current, isOnline]
+  );
 
   const handleIncommingCall = useCallback(
-    async ({ from, offer }) => {
-      setRemoteSocketId(from);
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: true,
-        video: true,
+    async ({ from, offer, name }) => {
+      Swal.fire({
+        title: `${name} is Calling ......`,
+        showDenyButton: true,
+        confirmButtonText: "Recieve call..",
+      }).then(async (result) => {
+        if (result.isConfirmed) {
+          setRemoteSocketId(from);
+          const stream = await navigator.mediaDevices.getUserMedia({
+            audio: true,
+            video: true,
+          });
+          localVideoRef.current.srcObject = stream;
+          setMyStream(stream);
+          setOpacity("visible")
+          const ans = await peer.getAnswer(offer);
+          
+          remoteVideoRef.current.srcObject=offer;
+
+          socket.current.emit("call:accepted", { to: from, ans });
+        } else if (result.isDenied) {
+          // Swal.fire("Changes are not saved", "", "info");
+          socket.current.emit("call:rejected", {
+            to: currentChat.id,
+            msg: "Rejected",
+            name: username,
+          });
+        }
       });
-      setMyStream(stream);
-      console.log(`Incoming Call`, from, offer);
-      const ans = await peer.getAnswer(offer);
-      socket.emit("call:accepted", { to: from, ans });
     },
-    [socket]
+    [socket.current]
   );
 
   const sendStreams = useCallback(() => {
@@ -258,6 +225,7 @@ export default function ChatContainer({ currentChat, socket }) {
 
   const handleCallAccepted = useCallback(
     ({ from, ans }) => {
+      setOpacity("visible")
       peer.setLocalDescription(ans);
       console.log("Call Accepted!");
       sendStreams();
@@ -297,31 +265,90 @@ export default function ChatContainer({ currentChat, socket }) {
     });
   }, []);
 
+  const handleCallRejected =useCallback
+    (async() => {
+
+     
+    await  socket.current.on("call:rejected",async ({ from, msg, name }) => {
+        // console.log(`${name} Rejected Your Call !! `)
+        // alert(`${name} Rejected Your Call !! `)
+       toast.error(`${name} Rejected Your Call !! `, {
+          position: "top-center",
+          autoClose: 2000,
+          hideProgressBar: false,
+          closeOnClick: true,
+          draggable: true,
+          theme: "colored",
+        });
+
+       
+      });
+      setOpacity("none");
+      const stream = localVideoRef.current.srcObject;
+      const tracks = stream.getTracks();
+if(tracks.length>0){
+      tracks.forEach(async (track) => {
+        await track.stop();
+      });}
+  
+      localVideoRef.current.srcObject = null;
+    },
+    [socket.current]);
+
   useEffect(() => {
-    socket.current.on("user:joined", handleUserJoined);
     socket.current.on("incomming:call", handleIncommingCall);
     socket.current.on("call:accepted", handleCallAccepted);
+    socket.current.on("call:rejected", handleCallRejected);
     socket.current.on("peer:nego:needed", handleNegoNeedIncomming);
     socket.current.on("peer:nego:final", handleNegoNeedFinal);
-
     return () => {
-      socket.current.off("user:joined", handleUserJoined);
       socket.current.off("incomming:call", handleIncommingCall);
       socket.current.off("call:accepted", handleCallAccepted);
+      socket.current.on("call:rejected", handleCallRejected);
       socket.current.off("peer:nego:needed", handleNegoNeedIncomming);
       socket.current.off("peer:nego:final", handleNegoNeedFinal);
     };
   }, [
-    socket,
-    handleUserJoined,
+    socket.current,
     handleIncommingCall,
     handleCallAccepted,
     handleNegoNeedIncomming,
     handleNegoNeedFinal,
   ]);
 
+  const cutVideoCall = async () => {
+    // Close the peer connection and detach tracks
+    if (peerConnection.current) {
+      const tracks = peerConnection.current.getSenders();
 
+      tracks.forEach((sender) => {
+        const track = sender.track;
+        if (track) {
+          track.stop();
+        }
+      });
 
+      peerConnection.current.close();
+    }
+    setMyStream(false);
+
+    const stream = localVideoRef.current.srcObject;
+    const tracks = stream.getTracks();
+
+    tracks.forEach(async (track) => {
+      await track.stop();
+    });
+    console.log(tracks);
+
+    localVideoRef.current.srcObject = null;
+
+    if (remoteVideoRef.current) {
+      remoteVideoRef.current.srcObject = null;
+    }
+
+    setCallEnded(true);
+    peerConnection.current.destroy();
+  };
 
   return (
     <>
@@ -344,7 +371,9 @@ export default function ChatContainer({ currentChat, socket }) {
 
           <div style={{ display: "flex", gap: "1%" }}>
             <button
-              onClick={() => {setOpacity("visible");handleCallUser(currentChat.id);}}
+              onClick={() => {
+                handleCallUser(currentChat.id);
+              }}
               style={{
                 backgroundColor: "yellow",
                 border: "none",
@@ -401,9 +430,12 @@ export default function ChatContainer({ currentChat, socket }) {
         <ChatInput handleSendMsg={handleSendMsg} />
         <ToastContainer />
       </Container>
-      <VideoCallModal opacity={opacity}>
+      <VideoCallModal opacity={opacity} >
         <button
-          onClick={() => {setOpacity("none");cutVideoCall()}}
+          onClick={() => {
+            setOpacity("none");
+            cutVideoCall();
+          }}
           style={{
             border: "none",
             backgroundColor: "red",
@@ -416,16 +448,15 @@ export default function ChatContainer({ currentChat, socket }) {
         >
           Close X
         </button>
-        <div>
+      <div style={{display:"flex"}}>
+      <div>
           <h2>Your Video</h2>
-         {<video ref={localVideoRef} autoPlay playsInline muted />}
+          {<video ref={localVideoRef} autoPlay playsInline muted />}
         </div>
         <div>
           <h2>Remote Video</h2>
-          {
-					<video playsInline ref={remoteVideoRef} autoPlay />
-					}
-        </div>
+          {<video playsInline ref={remoteVideoRef} autoPlay />}
+        </div></div>
       </VideoCallModal>
     </>
   );
@@ -520,6 +551,27 @@ const VideoCallModal = styled.div`
   z-index: 1000;
   padding: 2%;
   @media screen and (min-width: 320px) and (max-width: 640px) {
-    display:block;
+    display: block;
   }
 `;
+
+// const startVideoCall = useCallback( async (anotherUserID) => {
+//   try {
+//   let stream= await navigator?.mediaDevices?.getUserMedia({
+//       video: true,
+//       audio: true,
+//       });
+
+//   localVideoRef.current.srcObject = stream;
+
+//   const offer = await peer.getOffer();
+
+//   socket.current.emit("user:call",
+//   { to: anotherUserID, offer,name:username });
+//   setStream(stream)
+
+//     // console.log("Send offer:", localVideoRef.current.srcObject);
+//   } catch (error) {
+//     console.log("Error accessing user media:==>", error);
+//   }
+// },[socket.current])
