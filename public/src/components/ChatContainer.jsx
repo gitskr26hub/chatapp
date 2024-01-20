@@ -8,6 +8,7 @@ import { api } from "./api";
 import { IoMdVideocam } from "react-icons/io";
 import Swal from "sweetalert2";
 import peer from "./service/peer";
+import ReactPlayer from 'react-player'
 
 import { ToastContainer, toast } from "react-toastify";
 
@@ -146,9 +147,6 @@ export default function ChatContainer({ currentChat, socket }) {
 
   //------------------------------------------------------------------
 
-  const localVideoRef = useRef(null);
-  const remoteVideoRef = useRef(null);
-  const peerConnection = useRef(null);
 
   const handleCallUser = useCallback(
     async (remoteSocketId) => {
@@ -161,7 +159,7 @@ export default function ChatContainer({ currentChat, socket }) {
           video: true,
         });
         setMyStream(stream);
-        localVideoRef.current.srcObject = stream;
+     
 
         const offer = await peer.getOffer();
         socket.current.emit("user:call", {
@@ -267,6 +265,13 @@ export default function ChatContainer({ currentChat, socket }) {
 
   const handleCallRejected =useCallback
     (async() => {
+      const tracks = myStream?.getTracks();
+      if(tracks?.length>0){
+         tracks.forEach(async (track) => {
+           await track.stop();
+         });
+         setMyStream()
+       }
 
      
     await  socket.current.on("call:rejected",async ({ from, msg, name }) => {
@@ -284,14 +289,10 @@ export default function ChatContainer({ currentChat, socket }) {
        
       });
       setOpacity("none");
-      const stream = localVideoRef.current.srcObject;
-      const tracks = stream.getTracks();
-if(tracks.length>0){
-      tracks.forEach(async (track) => {
-        await track.stop();
-      });}
+     
+     
   
-      localVideoRef.current.srcObject = null;
+    
     },
     [socket.current]);
 
@@ -314,42 +315,10 @@ if(tracks.length>0){
     handleCallAccepted,
     handleNegoNeedIncomming,
     handleNegoNeedFinal,
+    handleCallRejected
   ]);
 
-  const cutVideoCall = async () => {
-    // Close the peer connection and detach tracks
-    if (peerConnection.current) {
-      const tracks = peerConnection.current.getSenders();
-
-      tracks.forEach((sender) => {
-        const track = sender.track;
-        if (track) {
-          track.stop();
-        }
-      });
-
-      peerConnection.current.close();
-    }
-    setMyStream(false);
-
-    const stream = localVideoRef.current.srcObject;
-    const tracks = stream.getTracks();
-
-    tracks.forEach(async (track) => {
-      await track.stop();
-    });
-    console.log(tracks);
-
-    localVideoRef.current.srcObject = null;
-
-    if (remoteVideoRef.current) {
-      remoteVideoRef.current.srcObject = null;
-    }
-
-    setCallEnded(true);
-    peerConnection.current.destroy();
-  };
-
+  
   return (
     <>
       <Container>
@@ -432,10 +401,7 @@ if(tracks.length>0){
       </Container>
       <VideoCallModal opacity={opacity} >
         <button
-          onClick={() => {
-            setOpacity("none");
-            cutVideoCall();
-          }}
+          onClick={handleCallRejected}
           style={{
             border: "none",
             backgroundColor: "red",
@@ -448,14 +414,51 @@ if(tracks.length>0){
         >
           Close X
         </button>
+        {myStream && <button  style={{
+            border: "none",
+            backgroundColor: "green",
+            color: "white",
+            fontSize: "15px",
+            padding: "5px 15px",
+            borderRadius: "5px",
+            position: "right",
+          }} onClick={sendStreams}>Send Stream</button>}
       <div style={{display:"flex"}}>
       <div>
-          <h2>Your Video</h2>
-          {<video ref={localVideoRef} autoPlay playsInline muted />}
+      {myStream && (
+        <>
+          <h1>My Stream</h1>
+          <ReactPlayer
+            playing
+            muted
+            height="100px"
+            width="200px"
+            url={myStream}
+          />
+        </>
+      )}
+          {/* <h2>Your Video</h2>
+          {myStream && <video autoPlay playsInline muted >
+            <source src={myStream}/>
+            </video>} */}
         </div>
         <div>
-          <h2>Remote Video</h2>
-          {<video playsInline ref={remoteVideoRef} autoPlay />}
+        {remoteStream && (
+        <>
+          <h1>Remote Stream</h1>
+          <ReactPlayer
+            playing
+            muted
+            height="100px"
+            width="200px"
+            url={remoteStream}
+          />
+        </>
+      )}
+      
+      {/* {remoteSocketId && <button onClick={handleCallUser}>CALL</button>} */}
+          {/* <h2>Remote Video</h2>
+          {<video playsInline ref={remoteVideoRef} autoPlay />} */}
         </div></div>
       </VideoCallModal>
     </>
@@ -575,3 +578,35 @@ const VideoCallModal = styled.div`
 //     console.log("Error accessing user media:==>", error);
 //   }
 // },[socket.current])
+
+
+
+const cutVideoCall = async () => {
+  // Close the peer connection and detach tracks
+  if (peerConnection.current) {
+    const tracks = peerConnection.current.getSenders();
+
+    tracks.forEach((sender) => {
+      const track = sender.track;
+      if (track) {
+        track.stop();
+      }
+    });
+
+    peerConnection.current.close();
+  }
+  setMyStream(false);
+
+  const stream = localVideoRef.current.srcObject;
+  const tracks = stream.getTracks();
+
+  tracks.forEach(async (track) => {
+    await track.stop();
+  });
+  console.log(tracks);
+
+ 
+
+  
+
+};
