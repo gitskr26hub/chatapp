@@ -149,7 +149,7 @@ export default function ChatContainer({ currentChat, socket }) {
 
 
   const handleCallUser = useCallback(
-    async (remoteSocketId) => {
+    async (mongoID) => {
       console.log(isOnline, remoteSocketId);
       if (isOnline) {
         setOpacity("visible");
@@ -163,7 +163,7 @@ export default function ChatContainer({ currentChat, socket }) {
 
         const offer = await peer.getOffer();
         socket.current.emit("user:call", {
-          to: remoteSocketId,
+          to: mongoID,
           offer,
           name: username,
         });
@@ -194,14 +194,12 @@ export default function ChatContainer({ currentChat, socket }) {
             audio: true,
             video: true,
           });
-          localVideoRef.current.srcObject = stream;
+        
           setMyStream(stream);
           setOpacity("visible")
           const ans = await peer.getAnswer(offer);
           
-          remoteVideoRef.current.srcObject=offer;
-
-          socket.current.emit("call:accepted", { to: from, ans });
+          socket.current.emit("call:accepted", { to: currentChat.id, ans });
         } else if (result.isDenied) {
           // Swal.fire("Changes are not saved", "", "info");
           socket.current.emit("call:rejected", {
@@ -228,12 +226,14 @@ export default function ChatContainer({ currentChat, socket }) {
       console.log("Call Accepted!");
       sendStreams();
     },
-    [sendStreams]
+    [
+      sendStreams
+    ]
   );
 
   const handleNegoNeeded = useCallback(async () => {
     const offer = await peer.getOffer();
-    socket.emit("peer:nego:needed", { offer, to: remoteSocketId });
+    socket.current.emit("peer:nego:needed", { offer, to: currentChat.id });
   }, [remoteSocketId, socket]);
 
   useEffect(() => {
@@ -246,7 +246,7 @@ export default function ChatContainer({ currentChat, socket }) {
   const handleNegoNeedIncomming = useCallback(
     async ({ from, offer }) => {
       const ans = await peer.getAnswer(offer);
-      socket.emit("peer:nego:done", { to: from, ans });
+      socket.current.emit("peer:nego:done", { to: from, ans });
     },
     [socket]
   );
@@ -262,10 +262,12 @@ export default function ChatContainer({ currentChat, socket }) {
       setRemoteStream(remoteStream[0]);
     });
   }, []);
+  // console.log("GOT TRACKS!!",remoteStream);
 
   const handleCallRejected =useCallback
     (async() => {
-      const tracks = myStream?.getTracks();
+        cutVideoCall()
+      const tracks =await myStream?.getTracks();
       if(tracks?.length>0){
          tracks.forEach(async (track) => {
            await track.stop();
@@ -290,9 +292,6 @@ export default function ChatContainer({ currentChat, socket }) {
       });
       setOpacity("none");
      
-     
-  
-    
     },
     [socket.current]);
 
@@ -318,6 +317,25 @@ export default function ChatContainer({ currentChat, socket }) {
     handleCallRejected
   ]);
 
+
+  const cutVideoCall = async () => {
+
+    const remoteTracks=remoteStream?.getTracks();
+    if(remoteTracks?.length>0){
+      remoteTracks.forEach(async (track) => {
+        await track.stop();
+      });
+    }
+
+  const tracks = myStream?.getTracks();
+  if(tracks?.length>0){
+  tracks.forEach(async (track) => {
+    await track.stop();
+  });}
+  // console.log(tracks);
+  return
+ 
+};
   
   return (
     <>
@@ -414,15 +432,8 @@ export default function ChatContainer({ currentChat, socket }) {
         >
           Close X
         </button>
-        {myStream && <button  style={{
-            border: "none",
-            backgroundColor: "green",
-            color: "white",
-            fontSize: "15px",
-            padding: "5px 15px",
-            borderRadius: "5px",
-            position: "right",
-          }} onClick={sendStreams}>Send Stream</button>}
+   {myStream && <button onClick={()=>sendStreams()}>SEND STREAM </button>}
+       
       <div style={{display:"flex"}}>
       <div>
       {myStream && (
@@ -431,16 +442,13 @@ export default function ChatContainer({ currentChat, socket }) {
           <ReactPlayer
             playing
             muted
-            height="100px"
-            width="200px"
+            height="400px"
+            width="400px"
             url={myStream}
           />
         </>
       )}
-          {/* <h2>Your Video</h2>
-          {myStream && <video autoPlay playsInline muted >
-            <source src={myStream}/>
-            </video>} */}
+        
         </div>
         <div>
         {remoteStream && (
@@ -449,8 +457,8 @@ export default function ChatContainer({ currentChat, socket }) {
           <ReactPlayer
             playing
             muted
-            height="100px"
-            width="200px"
+            height="400px"
+            width="400px"
             url={remoteStream}
           />
         </>
@@ -581,32 +589,3 @@ const VideoCallModal = styled.div`
 
 
 
-// const cutVideoCall = async () => {
-//   // Close the peer connection and detach tracks
-//   if (peerConnection.current) {
-//     const tracks = peerConnection.current.getSenders();
-
-//     tracks.forEach((sender) => {
-//       const track = sender.track;
-//       if (track) {
-//         track.stop();
-//       }
-//     });
-
-//     peerConnection.current.close();
-//   }
-//   setMyStream(false);
-
-//   const stream = localVideoRef.current.srcObject;
-//   const tracks = stream.getTracks();
-
-//   tracks.forEach(async (track) => {
-//     await track.stop();
-//   });
-//   console.log(tracks);
-
- 
-
-  
-
-// };

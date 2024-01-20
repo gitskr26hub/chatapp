@@ -125,7 +125,10 @@ try{
   });
   
   socket.on("call:accepted", ({ to, ans }) => {
-     io.to(to).emit("call:accepted", { from: socket.id, ans });
+    const anotherUserID=onlineUsers.get(to)
+
+     io.to(anotherUserID).emit("call:accepted",
+      { from: socket.id, ans });
   });
 
 
@@ -138,7 +141,8 @@ try{
 
   socket.on("peer:nego:needed", ({ to, offer }) => {
     console.log("peer:nego:needed", offer);
-    io.to(to).emit("peer:nego:needed", { from: socket.id, offer });
+    const anotherUserID=onlineUsers.get(to)
+    io.to(anotherUserID).emit("peer:nego:needed", { from: socket.id, offer });
   });
 
   socket.on("peer:nego:done", ({ to, ans }) => {
