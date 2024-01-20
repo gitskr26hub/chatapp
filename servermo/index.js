@@ -115,11 +115,13 @@ try{
     });
   
   //------------------video call---------
-  socket.on("user:call", ({ to, offer,name }) => {
+  socket.on("user:call", ({from, to, offer,name }) => {
     const anotherUserID=onlineUsers.get(to)
-    console.log(to,offer,name)
+    const mySocketID=onlineUsers.get(from)
+    console.log(mySocketID,to,offer,name);
+    
     io.to(anotherUserID).emit("incomming:call", 
-    { from: socket.id, offer,name });
+    { from: mySocketID, offer,name });
   });
   
   socket.on("call:accepted", ({ to, ans }) => {

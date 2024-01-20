@@ -165,6 +165,7 @@ export default function ChatContainer({ currentChat, socket }) {
 
         const offer = await peer.getOffer();
         socket.current.emit("user:call", {
+          from:id,
           to: remoteSocketId,
           offer,
           name: username,
@@ -204,6 +205,9 @@ export default function ChatContainer({ currentChat, socket }) {
           remoteVideoRef.current.srcObject=offer;
 
           socket.current.emit("call:accepted", { to: from, ans });
+          console.log("remoteVideoRef.current",remoteVideoRef.current)
+
+
         } else if (result.isDenied) {
           // Swal.fire("Changes are not saved", "", "info");
           socket.current.emit("call:rejected", {
@@ -216,6 +220,8 @@ export default function ChatContainer({ currentChat, socket }) {
     },
     [socket.current]
   );
+
+  console.log("remoteVideoRef.current",remoteVideoRef.current.srcObject)
 
   const sendStreams = useCallback(() => {
     for (const track of myStream.getTracks()) {
@@ -261,6 +267,7 @@ export default function ChatContainer({ currentChat, socket }) {
     peer.peer.addEventListener("track", async (ev) => {
       const remoteStream = ev.streams;
       console.log("GOT TRACKS!!");
+      remoteVideoRef.current.srcObject=remoteStream[0]
       setRemoteStream(remoteStream[0]);
     });
   }, []);
@@ -346,8 +353,8 @@ if(tracks.length>0){
       remoteVideoRef.current.srcObject = null;
     }
 
-    setCallEnded(true);
-    peerConnection.current.destroy();
+   
+    
   };
 
   return (
@@ -449,11 +456,11 @@ if(tracks.length>0){
           Close X
         </button>
       <div style={{display:"flex"}}>
-      <div>
+      <div style={{border:"4px solid green "}}>
           <h2>Your Video</h2>
-          {<video ref={localVideoRef} autoPlay playsInline muted />}
+          {<video ref={localVideoRef} autoPlay playsInline muted controls/>}
         </div>
-        <div>
+        <div style={{border:"4px solid blue "}}>
           <h2>Remote Video</h2>
           {<video playsInline ref={remoteVideoRef} autoPlay />}
         </div></div>
