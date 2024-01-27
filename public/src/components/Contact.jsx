@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import styled from "styled-components";
 import Logo from "../assets/logo.svg";
+import Avatar from 'react-avatar';
 
 export default function Contacts({ contacts, changeChat }) {
   const [currentUserName, setCurrentUserName] = useState(undefined);
@@ -24,7 +25,7 @@ export default function Contacts({ contacts, changeChat }) {
   
   return (
     <>
-      {currentUserImage && currentUserImage && (
+      {(
         <Container>
           <div className="brand">
             <img src={Logo} alt="logo" />
@@ -41,10 +42,7 @@ export default function Contacts({ contacts, changeChat }) {
                   onClick={() => changeCurrentChat(index, contact)}
                 >
                   <div className="avatar">
-                    <img
-                      src={`data:image/svg+xml;base64,${contact.avatarImage}`}
-                      alt=""
-                    />
+                   <Avatar src={`data:image/svg+xml;base64,${contact.avatarImage}`} name={contact?.username} size="50" round={true}/>
                   </div>
                   <div className="username">
                     <h3>{contact?.username}</h3>
@@ -55,9 +53,10 @@ export default function Contacts({ contacts, changeChat }) {
           </div>
           <div className="current-user">
             <div className="avatar">
-              <img
+              <Avatar
                 src={`data:image/svg+xml;base64,${currentUserImage}`}
-                alt="avatar"
+                name={`avatar`}
+                size="50" round={true}
               />
             </div>
             <div className="username">
