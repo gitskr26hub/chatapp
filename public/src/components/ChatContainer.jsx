@@ -266,7 +266,8 @@ export default function ChatContainer({ currentChat, socket }) {
 
   const handleCallRejected =useCallback
     (async() => {
-        cutVideoCall()
+      await  cutVideoCall();
+      
       const tracks =await myStream?.getTracks();
       if(tracks?.length>0){
          tracks.forEach(async (track) => {
@@ -320,22 +321,22 @@ export default function ChatContainer({ currentChat, socket }) {
 
   const cutVideoCall = async () => {
 
-    const remoteTracks=remoteStream?.getTracks();
+    const remoteTracks=await remoteStream?.getTracks();
     if(remoteTracks?.length>0){
-      remoteTracks.forEach(async (track) => {
-        await track.stop();
+      remoteTracks?.forEach(async (track) => {
+        await track?.stop();
       });
     }
 
-  const tracks = myStream?.getTracks();
+  const tracks =await myStream?.getTracks();
   if(tracks?.length>0){
-  tracks.forEach(async (track) => {
-    await track.stop();
+  tracks?.forEach(async (track) => {
+    await track?.stop();
   });}
   // console.log(tracks);
   return
  
-};
+ };
   
   return (
     <>
@@ -435,10 +436,10 @@ export default function ChatContainer({ currentChat, socket }) {
    {myStream && <button onClick={()=>sendStreams()}>SEND STREAM </button>}
        
       <div style={{display:"flex"}}>
-      <div>
+      <div style={{border:"2px solid green "}}>
       {myStream && (
         <>
-          <h1>My Stream</h1>
+          <h1 style={{color:"red",backgroundColor:"green"}}>My Stream</h1>
           <ReactPlayer
             playing
             muted
@@ -450,10 +451,10 @@ export default function ChatContainer({ currentChat, socket }) {
       )}
         
         </div>
-        <div>
+        <div style={{border:"2px solid violet",marginLeft:"2%"}}>
         {remoteStream && (
         <>
-          <h1>Remote Stream</h1>
+          <h1 style={{color:"red",backgroundColor:"green"}}>Remote Stream</h1>
           <ReactPlayer
             playing
             muted
